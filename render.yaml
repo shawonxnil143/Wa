@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: irfanbot-render-devdash
+    env: node
+    plan: starter
+    buildCommand: npm ci && cp config.dev.json config.json
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_KEY
+        generateValue: true
+    disk:
+      name: session-disk
+      mountPath: /opt/render/project/src/auth
+      sizeGB: 1
+    healthCheckPath: /health
