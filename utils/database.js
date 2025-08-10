@@ -1,18 +1,10 @@
-// utils/database.js
+// MongoDB connection utility
 const mongoose = require('mongoose');
-const chalk = require('chalk');
-
-async function connectDB(uri) {
-  if (!uri) {
-    console.log(chalk.yellow('⚠ MongoDB URI not provided.'));
-    return;
-  }
+module.exports = async (uri) => {
   try {
-    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-    console.log(chalk.green.bold('✅ MongoDB Connected'));
+    await mongoose.connect(uri);
+    console.log('✅ MongoDB Connected');
   } catch (err) {
-    console.error(chalk.red.bold(`❌ MongoDB Connection Failed: ${err.message}`));
+    console.error('❌ MongoDB Connection Error:', err.message);
   }
-}
-
-module.exports = { connectDB };
+};
