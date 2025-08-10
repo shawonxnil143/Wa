@@ -5,11 +5,9 @@ const path = require('path');
 const express = require('express');
 const P = require('pino');
 const NodeCache = require('node-cache');
-
-// ✅ Chalk v4 (CommonJS)
 const chalk = require('chalk');
 
-// ✅ Boxen wrapper (v7 ESM/CMC উভয়েই কাজ করবে)
+// Boxen wrapper (ESM/CommonJS safe)
 const boxenModule = require('boxen');
 const boxen = (typeof boxenModule === 'function') ? boxenModule : boxenModule.default;
 
@@ -25,7 +23,7 @@ const CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname,'config.json'),'ut
 const logger = P({ level: 'info' });
 const cooldown = new NodeCache({ stdTTL: 1.5, checkperiod: 2 });
 
-// --- Web server (Render needs PORT) ---
+// -------------------- Web server (Render needs PORT) --------------------
 const app = express();
 const PORT = process.env.PORT || 10000;
 app.use(express.static(path.join(__dirname,'public')));
@@ -73,13 +71,11 @@ app.post('/dashboard/save', (req,res)=>{
     }
     fs.writeFileSync(path.join(__dirname,'config.json'), JSON.stringify(CONFIG,null,2));
     res.json({ ok:true });
-  } catch (e) {
-    res.status(500).json({ ok:false, error: e.message });
-  }
+  } catch (e) { res.status(500).json({ ok:false, error: e.message }); }
 });
 app.listen(PORT, ()=>logger.info(`HTTP server on :${PORT}`));
 
-// --- Banner ---
+// -------------------- Banner --------------------
 const banner = boxen(
   [
     `Bot       : ${CONFIG.botName}`,
@@ -93,7 +89,7 @@ const banner = boxen(
 );
 console.log(chalk.cyan(banner));
 
-// --- Bot core ---
+// -------------------- Bot core --------------------
 process.on('uncaughtException', e => logger.error(e));
 process.on('unhandledRejection', e => logger.error(e));
 
@@ -107,18 +103,24 @@ function loadCommands(dir) {
         map.set(mod.name, mod);
         logger.info(`✔ Loaded command: ${mod.name}`);
       }
-    } catch (e) { logger.error(`Failed to load ${file}: ${e.message}`); }
+    } catch (e) {
+      logger.error(`Failed to load ${file}: ${e.message}`);
+    }
   }
   return map;
 }
+
+// 1) কমান্ড আগে লোড করা হলো
 const commands = new Map([
   ...loadCommands(path.join(__dirname,'commands/core')),
   ...loadCommands(path.join(__dirname,'commands/admin')),
   ...loadCommands(path.join(__dirname,'commands/tools')),
   ...loadCommands(path.join(__dirname,'commands/fun')),
 ]);
+console.log(chalk.green(`✅ Commands loaded: ${commands.size}`));
 
 let restarting = false;
+
 async function start(){
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname,'auth'));
   const { version } = await fetchLatestBaileysVersion();
@@ -131,42 +133,42 @@ async function start(){
     syncFullHistory: false
   });
 
-  // ❗ pairing code এখানে আর কল করা হচ্ছে না — open হলে নিচে কল করা হবে
+  // 2) pairing code ফাংশন (রিট্রাইসহ)
+  let pairingRequested = false;
+  async function showPairingCode() {
+    if (pairingRequested) return;
+    pairingRequested = true;
 
-  let pairingRequested = false; // ensure single request
+    const noSession = !fs.existsSync(path.join(__dirname,'auth','creds.json'));
+    if (!CONFIG.features.pairingCode || !noSession) return;
 
+    const phone = (CONFIG.botNumber || '').replace(/[^0-9]/g,'');
+    if (!phone) return logger.error('Set botNumber in config.json with country code.');
+
+    for (let i = 1; i <= 8; i++) {
+      try {
+        const code = await sock.requestPairingCode(phone);
+        console.log(boxen(
+          `PAIRING CODE (attempt ${i})\n${code}\nOpen WhatsApp ➜ Linked devices ➜ Link with phone number`,
+          { padding: 1, borderColor: 'magenta' }
+        ));
+        break; // success
+      } catch (e) {
+        logger.error(`Pairing code error (try ${i}): ${e.message}`);
+        await new Promise(r => setTimeout(r, 2000)); // wait & retry
+      }
+    }
+  }
+
+  // 3) connection 'open' হলে তবেই pairing code দেখাও
   sock.ev.on('connection.update', async (u) => {
     const { connection, lastDisconnect } = u;
 
     if (connection === 'open') {
       STATE.connected = true;
       logger.info('✅ Connected');
-
-      // pairing code only if no session exists
-      const noSession = !fs.existsSync(path.join(__dirname,'auth','creds.json'));
-      if (CONFIG.features.pairingCode && noSession && !pairingRequested) {
-        pairingRequested = true;
-
-        const phone = (CONFIG.botNumber || '').replace(/[^0-9]/g,'');
-        if (!phone) return logger.error('Set botNumber in config.json with country code.');
-
-        // retry up to 5 times (handles 401/428)
-        for (let i = 1; i <= 5; i++) {
-          try {
-            const code = await sock.requestPairingCode(phone);
-            console.log(
-              boxen(
-                `PAIRING CODE (attempt ${i})\n${code}\nOpen WhatsApp ➜ Linked devices ➜ Link with phone number`,
-                { padding: 1, borderColor: 'magenta' }
-              )
-            );
-            break; // success
-          } catch (e) {
-            logger.error(`Pairing code error (try ${i}): ${e.message}`);
-            await new Promise(r => setTimeout(r, 2000));
-          }
-        }
-      }
+      // কমান্ড লোড লগ দেখানোর পর 800ms ডিলে দিয়ে pairing দেখাই
+      setTimeout(showPairingCode, 800);
     }
 
     if (connection === 'close') {
@@ -253,4 +255,5 @@ async function start(){
 
   sock.ev.on('creds.update', saveCreds);
 }
+
 start().catch(e => logger.error(e));
