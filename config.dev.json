@@ -2,9 +2,7 @@
   "botName": "IrfanBot",
   "prefix": "/",
   "language": "en",
-  "owner": [
-    "+6585062351"
-  ],
+  "owner": ["+6585062351"],
   "botNumber": "+6598840792",
   "features": {
     "pairingCode": true,
@@ -16,11 +14,7 @@
     "antiLink": {
       "enabled": true,
       "action": "warn",
-      "allowlist": [
-        "youtube.com",
-        "facebook.com",
-        "google.com"
-      ]
+      "allowlist": ["youtube.com","facebook.com","google.com"]
     }
   },
   "dashboard": {
@@ -29,6 +23,7 @@
   },
   "database": {
     "enabled": true,
-    "mongoURI": "mongodb+srv://irfan43ahmed:maruf@cluster0.zt6xaba.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    "uri": "MONGO_URI_FROM_ENV",
+    "sessionBackup": true
   }
 }
