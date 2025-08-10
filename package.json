@@ -1,7 +1,7 @@
 {
   "name": "irfanbot",
   "version": "1.0.0",
-  "description": "A fully featured WhatsApp bot with dashboard and MongoDB support.",
+  "description": "A fully featured WhatsApp bot with dashboard, MongoDB support, and hot-reload commands.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -17,7 +17,8 @@
     "humanize-duration": "^3.32.1",
     "mongoose": "^8.3.2",
     "node-cache": "^5.1.2",
-    "pino": "^8.17.1"
+    "pino": "^8.17.1",
+    "chokidar": "^3.6.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
@@ -30,7 +31,8 @@
     "bot",
     "dashboard",
     "baileys",
-    "mongodb"
+    "mongodb",
+    "hot-reload"
   ],
   "author": "IRFAN",
   "license": "MIT"
