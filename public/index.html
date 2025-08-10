@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IrfanBot | Advanced 3D Glass Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --accent: #ec4899;
+            --glass-bg: rgba(20, 22, 36, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-highlight: rgba(255, 255, 255, 0.05);
+            --text: #e0e0ff;
+            --text-light: #a5b4fc;
+            --text-muted: #94a3b8;
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: var(--text);
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15), transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(236, 72, 153, 0.15), transparent 40%);
+            z-index: -1;
+        }
+
+        .header {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            margin-bottom: 30px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            backdrop-filter: blur(12px);
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+            z-index: 2;
+            transform: perspective(1000px) rotateX(0.5deg);
+            transition: var(--transition);
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(120deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1));
+            z-index: -1;
+            opacity: 0.6;
+        }
+
+        .header:hover {
+            transform: perspective(1000px) rotateX(0.5deg) translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .header h1 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 2.2rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 800;
+            text-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+        }
+
+        .header h1 i {
+            font-size: 1.8rem;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .meta {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .meta span {
+            background: rgba(30, 41, 59, 0.7);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1);
+        }
+
+        .meta span i {
+            color: var(--primary);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 25px;
+            backdrop-filter: blur(12px);
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+            transform: perspective(1000px);
+            transition: var(--transition);
+            height: fit-content;
+        }
+
+        .card:hover {
+            transform: perspective(1000px) translateY(-10px) rotateX(1deg);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(120deg, transparent, var(--glass-highlight), transparent);
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .card h2 i {
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+
+        #status {
+            font-size: 1.3rem;
+            font-weight: 600;
+            padding: 15px;
+            border-radius: 16px;
+            background: rgba(30, 41, 59, 0.5);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        #status.connected {
+            color: #10b981;
+        }
+
+        #status.disconnected {
+            color: #ef4444;
+        }
+
+        #tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .pill {
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            color: white;
+            padding: 6px 16px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pill i {
+            font-size: 0.8rem;
+        }
+
+        .row {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .row > * {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        input, select, textarea, button {
+            width: 100%;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            background: rgba(15, 23, 42, 0.4);
+            color: var(--text);
+            font-size: 1rem;
+            transition: var(--transition);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3), inset 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            background: linear-gradient(to right, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.6);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button i {
+            font-size: 1.1rem;
+        }
+
+        details {
+            margin-top: 20px;
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        details[open] {
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        summary {
+            padding: 14px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-light);
+            transition: var(--transition);
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        summary::after {
+            content: '\f078';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+
+        details[open] summary::after {
+            transform: rotate(180deg);
+        }
+
+        summary:hover {
+            color: var(--primary);
+        }
+
+        #features {
+            padding: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .feature-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-toggle input[type="checkbox"] {
+            width: auto;
+            appearance: none;
+            width: 46px;
+            height: 26px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 999px;
+            position: relative;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid var(--glass-border);
+        }
+
+        .feature-toggle input[type="checkbox"]:checked {
+            background: var(--primary);
+        }
+
+        .feature-toggle input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 3px;
+            transition: var(--transition);
+        }
+
+        .feature-toggle input[type="checkbox"]:checked::before {
+            left: calc(100% - 23px);
+        }
+
+        #logs {
+            background: rgba(11, 16, 33, 0.9);
+            color: #e5e7eb;
+            padding: 20px;
+            border-radius: 16px;
+            max-height: 300px;
+            overflow: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .log-time {
+            color: var(--primary);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .log-info {
+            color: #94a3b8;
+        }
+
+        .log-warn {
+            color: #f59e0b;
+        }
+
+        .log-error {
+            color: #ef4444;
+        }
+
+        .floating {
+            position: absolute;
+            z-index: -1;
+        }
+
+        .floating:nth-child(1) {
+            top: 10%;
+            left: 5%;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border-radius: 20px;
+            animation: float 15s infinite ease-in-out;
+            filter: blur(25px);
+            opacity: 0.3;
+        }
+
+        .floating:nth-child(2) {
+            top: 60%;
+            right: 10%;
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(45deg, var(--accent), #f97316);
+            border-radius: 30px;
+            animation: float 18s infinite ease-in-out;
+            animation-delay: 2s;
+            filter: blur(30px);
+            opacity: 0.25;
+        }
+
+        .floating:nth-child(3) {
+            bottom: 15%;
+            left: 15%;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #0ea5e9, #06b6d4);
+            border-radius: 50%;
+            animation: float 12s infinite ease-in-out;
+            animation-delay: 4s;
+            filter: blur(20px);
+            opacity: 0.2;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-20px) rotate(5deg); }
+            50% { transform: translateY(20px) rotate(-5deg); }
+            75% { transform: translateY(-15px) rotate(3deg); }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .meta {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating background elements -->
+    <div class="floating"></div>
+    <div class="floating"></div>
+    <div class="floating"></div>
+    
+    <header class="header">
+        <h1><i class="fas fa-robot"></i> IrfanBot Dashboard</h1>
+        <div class="meta" id="meta">
+            <span><i class="fas fa-code"></i> v2.5.1</span>
+            <span><i class="fas fa-microchip"></i> Node v18.12.1</span>
+            <span><i class="fas fa-signal"></i> Online</span>
+        </div>
+    </header>
+    
+    <div class="dashboard">
+        <div class="card">
+            <h2><i class="fas fa-heart-pulse"></i> Status</h2>
+            <div id="status" class="connected"><i class="fas fa-check-circle"></i> Connected ✅</div>
+            <div id="tags">
+                <span class="pill"><i class="fas fa-bolt"></i> IrfanBot</span>
+                <span class="pill"><i class="fas fa-hashtag"></i> prefix: !</span>
+                <span class="pill"><i class="fas fa-globe"></i> Multi-Lang</span>
+                <span class="pill"><i class="fas fa-shield-alt"></i> Anti-Spam</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-cog"></i> Configuration</h2>
+            <div class="row">
+                <div>
+                    <label for="prefix">Command Prefix</label>
+                    <input type="text" id="prefix" value="!" placeholder="Enter prefix">
+                </div>
+                <div>
+                    <label for="language">Language</label>
+                    <select id="language">
+                        <option>en</option>
+                        <option selected>bn</option>
+                        <option>es</option>
+                        <option>fr</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div>
+                    <label for="owners">Owner IDs (comma separated)</label>
+                    <input type="text" id="owners" value="123456789, 987654321" placeholder="Enter owner IDs">
+                </div>
+                <div>
+                    <label for="botNumber">Bot Phone Number</label>
+                    <input type="text" id="botNumber" value="+8801712345678" placeholder="Enter phone number">
+                </div>
+            </div>
+            
+            <details>
+                <summary>Feature Toggles</summary>
+                <div id="features">
+                    <div class="feature-toggle">
+                        <input type="checkbox" id="f_antiSpam" checked>
+                        <label for="f_antiSpam">Anti-Spam</label>
+                    </div>
+                    <div class="feature-toggle">
+                        <input type="checkbox" id="f_antiLink" checked>
+                        <label for="f_antiLink">Anti-Link</label>
+                    </div>
+                    <div class="feature-toggle">
+                        <input type="checkbox" id="f_welcome" checked>
+                        <label for="f_welcome">Welcome Messages</label>
+                    </div>
+                    <div class="feature-toggle">
+                        <input type="checkbox" id="f_autoReply">
+                        <label for="f_autoReply">Auto-Reply</label>
+                    </div>
+                    <div class="feature-toggle">
+                        <input type="checkbox" id="f_moderation" checked>
+                        <label for="f_moderation">Auto-Moderation</label>
+                    </div>
+                    <div class="feature-toggle">
+                        <input type="checkbox" id="f_ai">
+                        <label for="f_ai">AI Responses</label>
+                    </div>
+                </div>
+            </details>
+            
+            <details>
+                <summary>AntiLink Allowlist</summary>
+                <textarea id="allowlist" placeholder="Enter allowed domains (one per line)">google.com
+youtube.com
+github.com
+wikipedia.org</textarea>
+            </details>
+            
+            <div class="row" style="margin-top: 20px;">
+                <input type="password" id="adminKey" placeholder="Enter ADMIN_KEY to save changes">
+                <button id="saveBtn"><i class="fas fa-save"></i> Save Configuration</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-terminal"></i> System Logs</h2>
+            <pre id="logs">
+<span class="log-entry"><span class="log-time">[12:45:31]</span> <span class="log-info">INFO:</span> Bot initialized successfully</span>
+<span class="log-entry"><span class="log-time">[12:46:22]</span> <span class="log-info">INFO:</span> Connected to WhatsApp Web</span>
+<span class="log-entry"><span class="log-time">[12:48:15]</span> <span class="log-info">INFO:</span> Received message from +8801712345678</span>
+<span class="log-entry"><span class="log-time">[12:49:03]</span> <span class="log-info">INFO:</span> Processed command: !help</span>
+<span class="log-entry"><span class="log-time">[12:52:47]</span> <span class="log-warn">WARN:</span> Spam detected from +8801912345678</span>
+<span class="log-entry"><span class="log-time">[12:55:12]</span> <span class="log-info">INFO:</span> Group join: IrfanBot Users</span>
+<span class="log-entry"><span class="log-time">[12:57:33]</span> <span class="log-error">ERROR:</span> Failed to send message (retrying...)</span>
+<span class="log-entry"><span class="log-time">[12:57:35]</span> <span class="log-info">INFO:</span> Message delivered successfully</span>
+<span class="log-entry"><span class="log-time">[13:01:22]</span> <span class="log-info">INFO:</span> AntiLink blocked example.com</span>
+<span class="log-entry"><span class="log-time">[13:05:18]</span> <span class="log-info">INFO:</span> AI response generated for user query</span>
+            </pre>
+        </div>
+    </div>
+    
+    <script>
+        // Simulate dynamic status
+        document.getElementById('status').addEventListener('click', function() {
+            if (this.classList.contains('connected')) {
+                this.classList.remove('connected');
+                this.classList.add('disconnected');
+                this.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Disconnected ⛔';
+            } else {
+                this.classList.remove('disconnected');
+                this.classList.add('connected');
+                this.innerHTML = '<i class="fas fa-check-circle"></i> Connected ✅';
+            }
+        });
+        
+        // Simulate save button action
+        document.getElementById('saveBtn').addEventListener('click', function() {
+            const adminKey = document.getElementById('adminKey').value;
+            if (!adminKey) {
+                alert('Please enter ADMIN_KEY to save changes');
+                return;
+            }
+            
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            this.disabled = true;
+            
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-check"></i> Saved!';
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-save"></i> Save Configuration';
+                    this.disabled = false;
+                }, 1500);
+            }, 1000);
+        });
+        
+        // Add floating animation to cards on hover
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                const angleY = (x - centerX) / 25;
+                const angleX = (centerY - y) / 25;
+                
+                card.style.transform = `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg) translateZ(10px)`;
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';
+            });
+        });
+        
+        // Simulate log updates
+        setInterval(() => {
+            const logs = document.getElementById('logs');
+            const now = new Date();
+            const time = `[${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+            
+            const logTypes = ['INFO', 'WARN', 'ERROR'];
+            const logMessages = [
+                'Received message from +8801712345678',
+                'Processed command: !status',
+                'Updated configuration',
+                'Spam detected from +8801912345678',
+                'AntiLink blocked example.com',
+                'AI response generated for user query',
+                'Database backup completed',
+                'Connection stability check passed',
+                'Scheduled task executed'
+            ];
+            
+            const type = logTypes[Math.floor(Math.random() * logTypes.length)];
+            const message = logMessages[Math.floor(Math.random() * logMessages.length)];
+            
+            let logClass = 'log-info';
+            if (type === 'WARN') logClass = 'log-warn';
+            if (type === 'ERROR') logClass = 'log-error';
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span class="log-time">${time}</span> <span class="${logClass}">${type}:</span> ${message}`;
+            
+            logs.appendChild(logEntry);
+            logs.scrollTop = logs.scrollHeight;
+        }, 5000);
+    </script>
+
+    <script>
+    async function loadConfig() {
+      const res = await fetch('/status');
+      const data = await res.json();
+      if (data.botName) document.querySelector('#botName').value = data.botName;
+      if (data.prefix) document.querySelector('#prefix').value = data.prefix;
+      if (data.botNumber) document.querySelector('#botNumber').value = data.botNumber;
+      if (data.language) document.querySelector('#language').value = data.language;
+    }
+
+    async function saveConfig() {
+      const config = {
+        botName: document.querySelector('#botName').value,
+        prefix: document.querySelector('#prefix').value,
+        botNumber: document.querySelector('#botNumber').value,
+        language: document.querySelector('#language').value
+      };
+      await fetch('/dashboard/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Key': prompt('Enter Admin Key:')
+        },
+        body: JSON.stringify(config)
+      });
+      alert('Config saved!');
+    }
+
+    async function loadLogs() {
+      const res = await fetch('/logs/tail');
+      const logs = await res.text();
+      document.querySelector('#logs').innerText = logs;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadConfig();
+      setInterval(loadLogs, 3000);
+    });
+    </script>
+    </body>
+  </html>
