@@ -1,18 +1,15 @@
 {
-  "name": "irfanbot-render-complete",
-  "version": "5.0.0",
-  "description": "Render-ready WhatsApp bot with dashboard, stable pairing, optional MongoDB (data + session backup). CommonJS, Node 18.",
+  "name": "irfanbot",
+  "version": "1.0.0",
+  "description": "A fully featured WhatsApp bot with dashboard and MongoDB support.",
   "main": "index.js",
-  "type": "commonjs",
-  "engines": {
-    "node": ">=18.0.0 <21.0.0"
-  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.9",
+    "@whiskeysockets/baileys": "^6.6.0",
+    "axios": "^1.7.2",
     "boxen": "^7.1.1",
     "chalk": "4.1.2",
     "dotenv": "^16.4.5",
@@ -20,10 +17,21 @@
     "humanize-duration": "^3.32.1",
     "mongoose": "^8.3.2",
     "node-cache": "^5.1.2",
-    "pino": "^9.0.0",
-    "qrcode-terminal": "^0.12.0"
+    "pino": "^8.17.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
-  }
+    "nodemon": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "dashboard",
+    "baileys",
+    "mongodb"
+  ],
+  "author": "IRFAN",
+  "license": "MIT"
 }
