@@ -1,6 +1,6 @@
 {
   "botName": "IrfanBot",
-  "prefix": "!",
+  "prefix": "/",
   "language": "en",
   "owner": [
     "+6585062351"
@@ -29,7 +29,6 @@
   },
   "database": {
     "enabled": true,
-    "mongoURI": "mongodb+srv://irfan43ahmed:maruf@cluster0.zt6xaba.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-    "sessionBackup": false
+    "mongoURI": "mongodb+srv://irfan43ahmed:maruf@cluster0.zt6xaba.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
   }
 }
