@@ -4,34 +4,143 @@ const path = require('path');
 
 module.exports = {
   name: "help",
-  run: async ({ sock, m, jid, CONFIG }) => {
+  aliases: ["menu", "h"],
+  description: "Show grouped help by folder or details for a specific command",
+  usage: ["help", "help <command>"],
+
+  run: async ({ sock, m, jid, args, CONFIG, commands }) => {
     try {
-      let msg = `🌟 *${CONFIG.botName} Help Menu* 🌟\n`;
-      msg += `\n*Prefix:* ${CONFIG.prefix}`;
-      msg += `\n*Owner:* ${CONFIG.owner.join(", ")}`;
-      msg += `\n*Language:* ${CONFIG.language}\n`;
+      const prefix = CONFIG.prefix || "!";
+      const want = (args && args[0]) ? String(args[0]).toLowerCase() : "";
 
-      const allCommands = [];
-      const cmdDirs = ["commands/core", "commands/admin", "commands/tools", "commands/fun"];
-
-      for (const dir of cmdDirs) {
-        const fullDir = path.join(__dirname, "..", dir.split("/")[1]);
-        if (!fs.existsSync(fullDir)) continue;
-        const files = fs.readdirSync(fullDir).filter(f => f.endsWith(".js"));
-        for (const file of files) {
-          try {
-            const cmd = require(path.join(fullDir, file));
-            if (cmd?.name) allCommands.push(cmd.name);
-          } catch {}
+      // --- 1) If specific command requested: show details and return
+      if (want) {
+        // search in memory map by name/alias
+        const mod = commands.get(want);
+        if (!mod) {
+          return sock.sendMessage(jid, { text: `❌ Command not found: ${want}\nTry: ${prefix}help` }, { quoted: m });
         }
+        const lines = [];
+        lines.push(`🌟 *${CONFIG.botName}* — Command Help`);
+        lines.push(`\n*Name:* ${mod.name}`);
+        if (Array.isArray(mod.aliases) && mod.aliases.length) {
+          lines.push(`*Aliases:* ${mod.aliases.map(a => `${prefix}${a}`).join(", ")}`);
+        }
+        if (mod.description) lines.push(`*Description:* ${mod.description}`);
+        if (mod.categorie || mod.category) lines.push(`*Category:* ${mod.categorie || mod.category}`);
+        if (mod.permission !== undefined) lines.push(`*Permission:* ${mod.permission}`);
+        if (mod.prefix !== undefined) lines.push(`*Needs Prefix:* ${mod.prefix ? "Yes" : "No"}`);
+
+        // usage/usages
+        const usages = Array.isArray(mod.usages) ? mod.usages : (mod.usage ? [mod.usage] : []);
+        if (usages.length) {
+          lines.push(`\n*Usage:*`);
+          for (const u of usages) lines.push(`• ${typeof u === "string" ? u : JSON.stringify(u)}`);
+        } else {
+          lines.push(`\n*Usage:* ${prefix}${mod.name} …`);
+        }
+
+        // sample
+        if (mod.example || mod.examples) {
+          const exs = Array.isArray(mod.examples) ? mod.examples : [mod.example];
+          lines.push(`\n*Examples:*`);
+          for (const ex of exs.filter(Boolean)) lines.push(`• ${ex}`);
+        }
+
+        return sock.sendMessage(jid, { text: lines.join("\n") }, { quoted: m });
       }
 
-      msg += `\n📜 *Available Commands (${allCommands.length}):*\n`;
-      msg += allCommands.map(c => `• ${CONFIG.prefix}${c}`).join("\n");
+      // --- 2) Build grouped menu from filesystem to know folders
+      const base = path.join(process.cwd(), "commands");
+      const groups = [
+        { key: "core",  title: "🧩 Core"   },
+        { key: "admin", title: "🛠️ Admin" },
+        { key: "tools", title: "🧰 Tools"  },
+        { key: "fun",   title: "🎉 Fun"    },
+        { key: "custom",title: "🧪 Custom" }
+      ];
 
-      await sock.sendMessage(jid, { text: msg }, { quoted: m });
+      // function to read folder & map to details
+      const readFolder = (folderKey) => {
+        const dir = path.join(base, folderKey);
+        if (!fs.existsSync(dir)) return [];
+        const files = fs.readdirSync(dir).filter(f => f.endsWith(".js"));
+        const list = [];
+        for (const f of files) {
+          try {
+            const mod = require(path.join(dir, f));
+            if (mod && mod.name && typeof mod.run === "function") {
+              list.push({
+                name: mod.name,
+                aliases: Array.isArray(mod.aliases) ? mod.aliases : [],
+                description: mod.description || "",
+                usage: Array.isArray(mod.usages) ? mod.usages : (mod.usage ? [mod.usage] : []),
+              });
+            }
+          } catch {
+            // ignore broken module
+          }
+        }
+        // sort by name
+        list.sort((a, b) => a.name.localeCompare(b.name));
+        return list;
+      };
+
+      // header
+      const header = [
+        `🌟 *${CONFIG.botName} Help Menu*`,
+        ``,
+        `*Prefix:* ${prefix}`,
+        `*Owner:* ${Array.isArray(CONFIG.owner) ? CONFIG.owner.join(", ") : (CONFIG.owner || "")}`,
+        `*Language:* ${CONFIG.language || "en"}`,
+      ].join("\n");
+
+      // body per group
+      const sections = [];
+      for (const g of groups) {
+        const items = readFolder(g.key);
+        if (!items.length) continue;
+        const lines = [];
+        lines.push(`\n${g.title} (${items.length})`);
+        for (const it of items) {
+          const aliasPart = it.aliases && it.aliases.length
+            ? ` _(${it.aliases.map(a => `${prefix}${a}`).join(", ")})_`
+            : "";
+          const desc = it.description ? ` — ${it.description}` : "";
+          lines.push(`• ${prefix}${it.name}${aliasPart}${desc}`);
+          if (it.usage && it.usage.length) {
+            // show first usage line only to keep menu compact
+            const u = it.usage[0];
+            lines.push(`   e.g. ${typeof u === "string" ? u : JSON.stringify(u)}`);
+          }
+        }
+        sections.push(lines.join("\n"));
+      }
+
+      // footer tips
+      const footer = `\nℹ️ Tips: Send *${prefix}help <command>* for details.`;
+
+      // join all & paginate if long
+      const fullText = [header, ...sections, footer].join("\n");
+      const chunks = chunkText(fullText, 3500); // safe margin for WA
+
+      for (const part of chunks) {
+        // slight delay to avoid rate-limit
+        await sock.sendMessage(jid, { text: part }, { quoted: m });
+      }
     } catch (err) {
       await sock.sendMessage(jid, { text: `❌ Error: ${err.message}` }, { quoted: m });
     }
   }
 };
+
+// Split big text into chunks for WhatsApp limits
+function chunkText(str, size) {
+  const out = [];
+  let i = 0;
+  while (i < str.length) {
+    out.push(str.slice(i, i + size));
+    i += size;
+  }
+  return out;
+}
