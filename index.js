@@ -19,61 +19,61 @@ const {
   Browsers
 } = require('@whiskeysockets/baileys');
 
-const CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname,'config.json'),'utf8'));
+const CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 const logger = P({ level: 'info' });
 const cooldown = new NodeCache({ stdTTL: 1.5, checkperiod: 2 });
 
 // -------------------- Web server (Render needs PORT) --------------------
 const app = express();
 const PORT = process.env.PORT || 10000;
-app.use(express.static(path.join(__dirname,'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 let STATE = { connected: false };
 
-app.get('/', (_,res)=>res.redirect('/index.html'));
-app.get('/health', (_,res)=>res.json({ ok:true, uptime: process.uptime() }));
-app.get('/status', (_,res)=>res.json({
+app.get('/', (_, res) => res.redirect('/index.html'));
+app.get('/health', (_, res) => res.json({ ok: true, uptime: process.uptime() }));
+app.get('/status', (_, res) => res.json({
   connected: STATE.connected,
   node: process.version,
   app: { name: CONFIG.botName, version: require('./package.json').version },
   config: CONFIG
 }));
-app.get('/logs/tail', (_,res)=>{
+app.get('/logs/tail', (_, res) => {
   try {
-    const p = path.join(__dirname,'logs','app.log');
-    let data = ''; if (fs.existsSync(p)) data = fs.readFileSync(p,'utf8');
+    const p = path.join(__dirname, 'logs', 'app.log');
+    let data = ''; if (fs.existsSync(p)) data = fs.readFileSync(p, 'utf8');
     res.type('text/plain').send((data.split('\n').slice(-200).join('\n')) || 'No logs yet.');
   } catch { res.type('text/plain').send('No logs.'); }
 });
-function checkAdminKey(req){
+function checkAdminKey(req) {
   const key = req.header('X-Admin-Key');
   const need = process.env[CONFIG.dashboard?.adminKeyEnv || 'ADMIN_KEY'];
   return need && key && key === need;
 }
-app.post('/dashboard/save', (req,res)=>{
-  if (!checkAdminKey(req)) return res.status(401).json({ ok:false, error:'Invalid admin key' });
+app.post('/dashboard/save', (req, res) => {
+  if (!checkAdminKey(req)) return res.status(401).json({ ok: false, error: 'Invalid admin key' });
   try {
     const { prefix, language, owner, botNumber, features, allowlist } = req.body || {};
     if (prefix) CONFIG.prefix = String(prefix);
     if (language) CONFIG.language = String(language);
     if (Array.isArray(owner)) CONFIG.owner = owner;
     if (botNumber) CONFIG.botNumber = String(botNumber);
-    if (features && typeof features==='object'){
-      for (const [k,v] of Object.entries(features)){
-        if (CONFIG.features[k] && typeof CONFIG.features[k]==='object') CONFIG.features[k].enabled = !!v;
+    if (features && typeof features === 'object') {
+      for (const [k, v] of Object.entries(features)) {
+        if (CONFIG.features[k] && typeof CONFIG.features[k] === 'object') CONFIG.features[k].enabled = !!v;
         else CONFIG.features[k] = !!v;
       }
     }
-    if (Array.isArray(allowlist)){
-      if (!CONFIG.features.antiLink) CONFIG.features.antiLink = { enabled:false, action:'warn', allowlist: [] };
+    if (Array.isArray(allowlist)) {
+      if (!CONFIG.features.antiLink) CONFIG.features.antiLink = { enabled: false, action: 'warn', allowlist: [] };
       CONFIG.features.antiLink.allowlist = allowlist;
     }
-    fs.writeFileSync(path.join(__dirname,'config.json'), JSON.stringify(CONFIG,null,2));
-    res.json({ ok:true });
-  } catch (e) { res.status(500).json({ ok:false, error: e.message }); }
+    fs.writeFileSync(path.join(__dirname, 'config.json'), JSON.stringify(CONFIG, null, 2));
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
-app.listen(PORT, ()=>logger.info(`HTTP server on :${PORT}`));
+app.listen(PORT, () => logger.info(`HTTP server on :${PORT}`));
 
 // -------------------- Banner --------------------
 const banner = boxen(
@@ -96,33 +96,31 @@ process.on('unhandledRejection', e => logger.error(e));
 function loadCommands(dir) {
   const map = new Map();
   if (!fs.existsSync(dir)) return map;
-  for (const file of fs.readdirSync(dir).filter(f=>f.endsWith('.js'))) {
+  for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
     try {
       const mod = require(path.join(dir, file));
       if (mod?.name && typeof mod.run === 'function') {
         map.set(mod.name, mod);
         logger.info(`✔ Loaded command: ${mod.name}`);
       }
-    } catch (e) {
-      logger.error(`Failed to load ${file}: ${e.message}`);
-    }
+    } catch (e) { logger.error(`Failed to load ${file}: ${e.message}`); }
   }
   return map;
 }
 
-// 1) কমান্ড আগে লোড করা হলো
+// 1) কমান্ড আগে লোড
 const commands = new Map([
-  ...loadCommands(path.join(__dirname,'commands/core')),
-  ...loadCommands(path.join(__dirname,'commands/admin')),
-  ...loadCommands(path.join(__dirname,'commands/tools')),
-  ...loadCommands(path.join(__dirname,'commands/fun')),
+  ...loadCommands(path.join(__dirname, 'commands/core')),
+  ...loadCommands(path.join(__dirname, 'commands/admin')),
+  ...loadCommands(path.join(__dirname, 'commands/tools')),
+  ...loadCommands(path.join(__dirname, 'commands/fun')),
 ]);
 console.log(chalk.green(`✅ Commands loaded: ${commands.size}`));
 
 let restarting = false;
 
-async function start(){
-  const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname,'auth'));
+async function start() {
+  const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'auth'));
   const { version } = await fetchLatestBaileysVersion();
   const sock = makeWASocket({
     version,
@@ -133,47 +131,57 @@ async function start(){
     syncFullHistory: false
   });
 
-  // 2) pairing code ফাংশন (রিট্রাইসহ)
-  let pairingRequested = false;
-  async function showPairingCode() {
-    if (pairingRequested) return;
-    pairingRequested = true;
+  // ---- pairing code helper (stable & retry) ----
+  let pairingShown = false;
+  let connState = 'init';
+  const delay = ms => new Promise(r => setTimeout(r, ms));
 
-    const noSession = !fs.existsSync(path.join(__dirname,'auth','creds.json'));
+  async function showPairingCodeWhenReady() {
+    if (pairingShown) return;
+    const noSession = !fs.existsSync(path.join(__dirname, 'auth', 'creds.json'));
     if (!CONFIG.features.pairingCode || !noSession) return;
 
-    const phone = (CONFIG.botNumber || '').replace(/[^0-9]/g,'');
+    const phone = (CONFIG.botNumber || '').replace(/[^0-9]/g, '');
     if (!phone) return logger.error('Set botNumber in config.json with country code.');
 
     for (let i = 1; i <= 8; i++) {
+      if (connState !== 'connecting' && connState !== 'open') {
+        await delay(600);
+      }
       try {
         const code = await sock.requestPairingCode(phone);
         console.log(boxen(
-          `PAIRING CODE (attempt ${i})\n${code}\nOpen WhatsApp ➜ Linked devices ➜ Link with phone number`,
+          `PAIRING CODE (try ${i})\n${code}\nOpen WhatsApp ➜ Linked devices ➜ Link with phone number`,
           { padding: 1, borderColor: 'magenta' }
         ));
-        break; // success
+        pairingShown = true;
+        break;
       } catch (e) {
         logger.error(`Pairing code error (try ${i}): ${e.message}`);
-        await new Promise(r => setTimeout(r, 2000)); // wait & retry
+        await delay(1500);
       }
     }
   }
 
-  // 3) connection 'open' হলে তবেই pairing code দেখাও
+  // ---- connection events ----
   sock.ev.on('connection.update', async (u) => {
+    if (u.connection) connState = u.connection;
     const { connection, lastDisconnect } = u;
+
+    if (connection === 'connecting' || connection === 'open') {
+      setTimeout(showPairingCodeWhenReady, 700); // commands first, then code
+    }
 
     if (connection === 'open') {
       STATE.connected = true;
       logger.info('✅ Connected');
-      // কমান্ড লোড লগ দেখানোর পর 800ms ডিলে দিয়ে pairing দেখাই
-      setTimeout(showPairingCode, 800);
     }
 
     if (connection === 'close') {
       STATE.connected = false;
-      const reason = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.status || lastDisconnect?.error;
+      const reason = lastDisconnect?.error?.output?.statusCode ||
+                     lastDisconnect?.error?.status ||
+                     lastDisconnect?.error;
       logger.error(`Connection closed: ${reason}`);
       if (reason !== DisconnectReason.loggedOut && !restarting) {
         restarting = true;
@@ -182,13 +190,16 @@ async function start(){
     }
   });
 
+  // সেফটি: স্টার্টের পর একবার চেষ্টা
+  setTimeout(showPairingCodeWhenReady, 1200);
+
   // Anti-call
   if (CONFIG.features.antiCall) {
     sock.ev.on('CB:call', async (json) => {
       const from = json?.content?.[0]?.attrs?.from;
       if (from) {
-        await sock.sendMessage(from, { text: 'Calls are not allowed. You are being blocked.' }).catch(()=>{});
-        await sock.updateBlockStatus(from, 'block').catch(()=>{});
+        await sock.sendMessage(from, { text: 'Calls are not allowed. You are being blocked.' }).catch(() => {});
+        await sock.updateBlockStatus(from, 'block').catch(() => {});
       }
     });
   }
@@ -217,12 +228,12 @@ async function start(){
     if (!m?.message || m.key.fromMe) return;
     const jid = m.key.remoteJid;
     const text = m.message.conversation || m.message.extendedTextMessage?.text || '';
-    if (CONFIG.features.autoRead) sock.readMessages([m.key]).catch(()=>{});
+    if (CONFIG.features.autoRead) sock.readMessages([m.key]).catch(() => {});
 
     // Anti-link with allowlist
     if (CONFIG.features.antiLink?.enabled && (/chat\.whatsapp\.com\/[0-9A-Za-z]+/i.test(text) || /https?:\/\//i.test(text)) && jid.endsWith('@g.us')) {
-      const allow = (CONFIG.features.antiLink.allowlist||[]);
-      const isAllowed = allow.some(d=> new RegExp(d.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i').test(text));
+      const allow = (CONFIG.features.antiLink.allowlist || []);
+      const isAllowed = allow.some(d => new RegExp(d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(text));
       if (!isAllowed) {
         const act = CONFIG.features.antiLink.action;
         try {
