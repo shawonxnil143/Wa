@@ -28,8 +28,8 @@
     "adminKeyEnv": "ADMIN_KEY"
   },
   "database": {
-    "enabled": false,
-    "mongoURI": "",
+    "enabled": true,
+    "mongoURI": "mongodb+srv://irfan43ahmed:maruf@cluster0.zt6xaba.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     "sessionBackup": false
   }
 }
