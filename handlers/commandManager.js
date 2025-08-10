@@ -13,12 +13,15 @@ function safeRequire(p) {
 
 function attachAliases(map, mod) {
   if (!Array.isArray(mod.aliases)) return;
-  for (const a of mod.aliases) map.set(String(a).toLowerCase(), mod);
+  for (const a of mod.aliases) {
+    map.set(String(a).toLowerCase(), mod);
+  }
 }
 
 function loadCommands(dir) {
   const map = new Map();
   if (!fs.existsSync(dir)) return map;
+
   for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
     try {
       const mod = require(path.join(dir, file));
@@ -68,42 +71,48 @@ function reloadCustomCommands(customDir, commands, logger) {
   return ok;
 }
 
-// Sandbox: allow only a tiny require allowlist (যেমন axios)
+/**
+ * Runtime installer: User provided code → live command (non-persistent).
+ * পরিবর্তন: এখানে sandbox/allowlist বাদ। নেটিভ require পাস করা হচ্ছে
+ * যাতে `require('os')`, `require('fs')` ইত্যাদি কাজ করে।
+ */
 function registerCommandFromCode(name, code, logger) {
   if (!/^[a-z0-9_\-]{2,32}$/i.test(name)) {
     throw new Error('Invalid name (2–32 chars a-z0-9_-)');
   }
 
-  const ALLOWED = new Set(['axios']);
-  const safeReq = (m) => {
-    if (!ALLOWED.has(m)) throw new Error(`Blocked require("${m}")`);
-    return require(m);
-  };
-
-  // যদি user module.exports না দেয়, wrapper দিয়ে run বানিয়ে দিচ্ছি
+  // module.exports না থাকলে auto-wrapper
   let moduleCode = code;
   if (!/module\.exports\s*=/.test(code)) {
     moduleCode = `
 module.exports = {
   name: '${name}',
-  run: async ({ sock, m, jid, args, CONFIG, logger }) => {
+  run: async ({ sock, m, jid, args, CONFIG, logger, commands }) => {
     try { ${code} }
-    catch(e){ await sock.sendMessage(jid, { text: '❌ ' + (e.message||e) }, { quoted: m }); }
+    catch(e){ await sock.sendMessage(jid, { text: '❌ ' + (e?.message || e) }, { quoted: m }); }
   }
 };`;
   }
 
-  // eslint-disable-next-line no-new-func
-  const factory = new Function('module', 'exports', 'require', moduleCode);
-  const mod = { exports: {} };
-  factory(mod, mod.exports, safeReq);
+  try {
+    // ⚠️ Native require pass-through (no sandbox)
+    // eslint-disable-next-line no-new-func
+    const factory = new Function('module', 'exports', 'require', moduleCode);
+    const mod = { exports: {} };
+    factory(mod, mod.exports, require);
 
-  if (!mod.exports || typeof mod.exports.run !== 'function' || !mod.exports.name) {
-    throw new Error('Your code compiled but did not export { name, run }.');
+    if (!mod.exports || typeof mod.exports.run !== 'function' || !mod.exports.name) {
+      throw new Error('Your code compiled but did not export { name, run }.');
+    }
+
+    const key = mod.exports.name.toLowerCase();
+    volatileCommands.set(key, mod.exports);
+    logger?.info?.(`🧪 Volatile command registered: ${mod.exports.name} (lost on restart)`);
+    return mod.exports;
+  } catch (e) {
+    // Friendlier error
+    throw new Error('Syntax/compile error: ' + (e?.message || e));
   }
-  volatileCommands.set(mod.exports.name.toLowerCase(), mod.exports);
-  logger?.info?.(`🧪 Volatile command registered: ${mod.exports.name} (lost on restart)`);
-  return mod.exports;
 }
 
 function createHelpers(commands, logger, customDir) {
@@ -113,7 +122,7 @@ function createHelpers(commands, logger, customDir) {
     reloadCustomCommands: () => reloadCustomCommands(customDir, commands, logger),
     registerCommandFromCode: (nm, code) => {
       const mod = registerCommandFromCode(nm, code, logger);
-      // main map-এও এক্সপোজ
+      // main map-এও এক্সপোজ + aliases
       commands.set(mod.name.toLowerCase(), mod);
       attachAliases(commands, mod);
       return mod;
