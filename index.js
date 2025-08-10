@@ -131,18 +131,44 @@ async function start(){
     syncFullHistory: false
   });
 
-  if (!fs.existsSync(path.join(__dirname,'auth','creds.json')) && CONFIG.features.pairingCode) {
-    try {
-      const phone = (CONFIG.botNumber || '').replace(/[^0-9]/g,'');
-      if (!phone) throw new Error('Set botNumber in config.json with country code.');
-      const code = await sock.requestPairingCode(phone);
-      console.log(boxen(`PAIRING CODE\n${code}\nOpen WhatsApp ➜ Linked devices ➜ Link with phone number`, { padding: 1, borderColor: 'magenta' }));
-    } catch (e) { logger.error(`Pairing code error: ${e.message}`); }
-  }
+  // ❗ pairing code এখানে আর কল করা হচ্ছে না — open হলে নিচে কল করা হবে
 
-  sock.ev.on('connection.update', (u) => {
+  let pairingRequested = false; // ensure single request
+
+  sock.ev.on('connection.update', async (u) => {
     const { connection, lastDisconnect } = u;
-    if (connection === 'open') { STATE.connected = true; logger.info('✅ Connected'); }
+
+    if (connection === 'open') {
+      STATE.connected = true;
+      logger.info('✅ Connected');
+
+      // pairing code only if no session exists
+      const noSession = !fs.existsSync(path.join(__dirname,'auth','creds.json'));
+      if (CONFIG.features.pairingCode && noSession && !pairingRequested) {
+        pairingRequested = true;
+
+        const phone = (CONFIG.botNumber || '').replace(/[^0-9]/g,'');
+        if (!phone) return logger.error('Set botNumber in config.json with country code.');
+
+        // retry up to 5 times (handles 401/428)
+        for (let i = 1; i <= 5; i++) {
+          try {
+            const code = await sock.requestPairingCode(phone);
+            console.log(
+              boxen(
+                `PAIRING CODE (attempt ${i})\n${code}\nOpen WhatsApp ➜ Linked devices ➜ Link with phone number`,
+                { padding: 1, borderColor: 'magenta' }
+              )
+            );
+            break; // success
+          } catch (e) {
+            logger.error(`Pairing code error (try ${i}): ${e.message}`);
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        }
+      }
+    }
+
     if (connection === 'close') {
       STATE.connected = false;
       const reason = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.status || lastDisconnect?.error;
