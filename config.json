@@ -1,6 +1,6 @@
 {
   "botName": "IrfanBot",
-  "prefix": "!",
+  "prefix": ".",
   "language": "en",
   "owner": [
     "+6585062351"
@@ -26,5 +26,9 @@
   "dashboard": {
     "enabled": true,
     "adminKeyEnv": "ADMIN_KEY"
+  },
+  "database": {
+    "enabled": false,
+    "mongoURI": "mongodb+srv://user:pass@cluster.mongodb.net/dbname"
   }
 }
