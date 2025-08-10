@@ -1,10 +1,11 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IrfanBot Dashboard</title>
-  <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>IrfanBot Dashboard</title>
+<style>
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;max-width:980px;margin:32px auto;padding:0 16px}
     .card{border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
     .row{display:flex;gap:12px;flex-wrap:wrap}
@@ -16,44 +17,115 @@
     pre{white-space:pre-wrap;background:#0d1117;color:#c9d1d9;border-radius:10px;padding:12px;max-height:300px;overflow:auto}
     small{color:#6b7280}
   </style>
+
+<style id="glass-style">
+:root{
+  --glass-bg: rgba(255,255,255,0.10);
+  --glass-brd: rgba(255,255,255,0.20);
+  --glass-hover: rgba(255,255,255,0.28);
+  --text:#fff;
+}
+html,body{height:100%}
+body{
+  background: linear-gradient(135deg, rgba(18,18,18,.9), rgba(40,40,40,.9)),
+              url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop') center/cover no-repeat fixed;
+  margin:0; color:var(--text);
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+.glass-container{
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-brd);
+  border-radius: 20px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 35px rgba(0,0,0,.35);
+  padding: 24px 28px;
+  margin: 24px auto;
+  max-width: 1100px;
+}
+h1,h2,h3,h4,p,small,span,li,dt,dd,label{color:var(--text)}
+/* Buttons - don't remove existing classes; just enhance */
+button, .btn, a.button, .glass-btn, input[type="button"], input[type="submit"]{
+  background: var(--glass-bg);
+  color: var(--text);
+  border: 1px solid var(--glass-brd);
+  border-radius: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all .2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+button:hover, .btn:hover, a.button:hover, .glass-btn:hover, input[type="submit"]:hover{
+  background: var(--glass-hover);
+  transform: translateY(-1px);
+}
+.table, table{
+  background: var(--glass-bg);
+  border-collapse: collapse;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.table th, .table td, table th, table td{
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 10px 12px;
+  color: var(--text);
+}
+input, select, textarea{
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--glass-brd);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline: none;
+}
+input::placeholder, textarea::placeholder{ color: rgba(255,255,255,.70); }
+.card, .panel, .box{
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-brd);
+  border-radius: 16px;
+  padding: 16px;
+}
+</style>
 </head>
 <body>
-  <h1>🛠️ IrfanBot Dashboard</h1>
-  <div class="card">
-    <div class="row">
-      <div><label>Origin</label><input id="origin" readonly><small id="copyMsg"></small></div>
-      <div><label>Status</label><div id="statusPills"></div></div>
-    </div>
-    <div class="row">
-      <div><label>Admin Key</label><input id="adminKey" placeholder="Set ADMIN_KEY env"></div>
-      <div><label>Prefix</label><input id="prefix"></div>
-      <div><label>Bot Number</label><input id="botNumber"></div>
-    </div>
-    <div class="row">
-      <div><label>Bot Name</label><input id="botName"></div>
-      <div><label>Language</label><input id="language"></div>
-      <div><label>Owners (JSON array)</label><input id="owner"></div>
-    </div>
-    <div class="row">
-      <div><label>Mongo Enabled</label>
-        <select id="dbEnabled"><option value="false">false</option><option value="true">true</option></select>
-      </div>
-      <div><label>Session Backup</label>
-        <select id="dbBackup"><option value="false">false</option><option value="true">true</option></select>
-      </div>
-      <div><label>Mongo URI (.env recommended)</label><input id="mongo"></div>
-    </div>
-    <div class="row">
-      <div><button id="saveBtn">Save Config</button></div>
-      <div><button id="copyBtn">Copy Origin</button></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>Tail Logs</h3>
-    <pre id="logs">Loading...</pre>
-  </div>
-
+<h1>🛠️ IrfanBot Dashboard</h1>
+<div class="card glass-container">
+<div class="row">
+<div><label>Origin</label><input id="origin" readonly=""/><small id="copyMsg"></small></div>
+<div><label>Status</label><div id="statusPills"></div></div>
+</div>
+<div class="row">
+<div><label>Admin Key</label><input id="adminKey" placeholder="Set ADMIN_KEY env"/></div>
+<div><label>Prefix</label><input id="prefix"/></div>
+<div><label>Bot Number</label><input id="botNumber"/></div>
+</div>
+<div class="row">
+<div><label>Bot Name</label><input id="botName"/></div>
+<div><label>Language</label><input id="language"/></div>
+<div><label>Owners (JSON array)</label><input id="owner"/></div>
+</div>
+<div class="row">
+<div><label>Mongo Enabled</label>
+<select id="dbEnabled"><option value="false">false</option><option value="true">true</option></select>
+</div>
+<div><label>Session Backup</label>
+<select id="dbBackup"><option value="false">false</option><option value="true">true</option></select>
+</div>
+<div><label>Mongo URI (.env recommended)</label><input id="mongo"/></div>
+</div>
+<div class="row">
+<div><button class="glass-btn" id="saveBtn">Save Config</button></div>
+<div><button class="glass-btn" id="copyBtn">Copy Origin</button></div>
+</div>
+</div>
+<div class="card">
+<h3>Tail Logs</h3>
+<pre id="logs">Loading...</pre>
+</div>
 <script>
 async function loadStatus(){
   const res = await fetch('/status');
