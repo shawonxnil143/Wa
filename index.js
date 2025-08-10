@@ -1,13 +1,18 @@
-
+// IrfanBot – Render Dashboard + Dev (CommonJS, Node 18)
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const chalk = require('chalk');
 const P = require('pino');
 const NodeCache = require('node-cache');
+
+// ✅ Chalk v4 (CommonJS)
+const chalk = require('chalk');
+
+// ✅ Boxen wrapper (v7 ESM/CMC উভয়েই কাজ করবে)
 const boxenModule = require('boxen');
 const boxen = (typeof boxenModule === 'function') ? boxenModule : boxenModule.default;
+
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -20,6 +25,7 @@ const CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname,'config.json'),'ut
 const logger = P({ level: 'info' });
 const cooldown = new NodeCache({ stdTTL: 1.5, checkperiod: 2 });
 
+// --- Web server (Render needs PORT) ---
 const app = express();
 const PORT = process.env.PORT || 10000;
 app.use(express.static(path.join(__dirname,'public')));
@@ -29,14 +35,12 @@ let STATE = { connected: false };
 
 app.get('/', (_,res)=>res.redirect('/index.html'));
 app.get('/health', (_,res)=>res.json({ ok:true, uptime: process.uptime() }));
-app.get('/status', (_,res)=>{
-  res.json({
-    connected: STATE.connected,
-    node: process.version,
-    app: { name: CONFIG.botName, version: require('./package.json').version },
-    config: CONFIG
-  });
-});
+app.get('/status', (_,res)=>res.json({
+  connected: STATE.connected,
+  node: process.version,
+  app: { name: CONFIG.botName, version: require('./package.json').version },
+  config: CONFIG
+}));
 app.get('/logs/tail', (_,res)=>{
   try {
     const p = path.join(__dirname,'logs','app.log');
@@ -75,6 +79,7 @@ app.post('/dashboard/save', (req,res)=>{
 });
 app.listen(PORT, ()=>logger.info(`HTTP server on :${PORT}`));
 
+// --- Banner ---
 const banner = boxen(
   [
     `Bot       : ${CONFIG.botName}`,
@@ -88,8 +93,9 @@ const banner = boxen(
 );
 console.log(chalk.cyan(banner));
 
-process.on('uncaughtException', e => logger.error({err:e}, 'uncaughtException'));
-process.on('unhandledRejection', e => logger.error({err:e}, 'unhandledRejection'));
+// --- Bot core ---
+process.on('uncaughtException', e => logger.error(e));
+process.on('unhandledRejection', e => logger.error(e));
 
 function loadCommands(dir) {
   const map = new Map();
@@ -101,9 +107,7 @@ function loadCommands(dir) {
         map.set(mod.name, mod);
         logger.info(`✔ Loaded command: ${mod.name}`);
       }
-    } catch (e) {
-        logger.error(`Failed to load ${file}: ${e.message}`);
-    }
+    } catch (e) { logger.error(`Failed to load ${file}: ${e.message}`); }
   }
   return map;
 }
@@ -150,6 +154,7 @@ async function start(){
     }
   });
 
+  // Anti-call
   if (CONFIG.features.antiCall) {
     sock.ev.on('CB:call', async (json) => {
       const from = json?.content?.[0]?.attrs?.from;
@@ -160,6 +165,7 @@ async function start(){
     });
   }
 
+  // Welcome/Goodbye
   sock.ev.on('group-participants.update', async (ev) => {
     try {
       const meta = await sock.groupMetadata(ev.id);
@@ -177,6 +183,7 @@ async function start(){
     } catch {}
   });
 
+  // Messages
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0];
     if (!m?.message || m.key.fromMe) return;
@@ -184,9 +191,10 @@ async function start(){
     const text = m.message.conversation || m.message.extendedTextMessage?.text || '';
     if (CONFIG.features.autoRead) sock.readMessages([m.key]).catch(()=>{});
 
+    // Anti-link with allowlist
     if (CONFIG.features.antiLink?.enabled && (/chat\.whatsapp\.com\/[0-9A-Za-z]+/i.test(text) || /https?:\/\//i.test(text)) && jid.endsWith('@g.us')) {
       const allow = (CONFIG.features.antiLink.allowlist||[]);
-      const isAllowed = allow.some(d=> new RegExp(d.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&'),'i').test(text));
+      const isAllowed = allow.some(d=> new RegExp(d.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i').test(text));
       if (!isAllowed) {
         const act = CONFIG.features.antiLink.action;
         try {
