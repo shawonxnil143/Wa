@@ -28,7 +28,7 @@
     "adminKeyEnv": "ADMIN_KEY"
   },
   "database": {
-    "enabled": true,
+    "enabled": false,
     "mongoURI": ""
   }
 }
