@@ -56,4 +56,16 @@ function loadCommands(commandsDir) {
   return map;
 }
 
-module.exports = { loadCommands };
+// NEW: provide helpers expected by index.js
+function createHelpers(sock) {
+  return {
+    sendText: async (jid, text, opts = {}) => sock.sendMessage(jid, { text: String(text) }, opts),
+    mention: (jid, numbers = []) => numbers.map(n => (String(n).includes('@') ? n : `${n}@s.whatsapp.net`)),
+    sleep: (ms) => new Promise(r => setTimeout(r, ms)),
+    react: async (m, emoji) => {
+      try { await sock.sendMessage(m.key.remoteJid, { react: { text: emoji, key: m.key } }); } catch {}
+    }
+  };
+}
+
+module.exports = { loadCommands, createHelpers };
