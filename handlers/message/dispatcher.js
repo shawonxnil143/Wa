@@ -1,5 +1,18 @@
 // handlers/message/dispatcher.js (debug-enhanced)
-const NodeCache = require('node-cache');
+// The dispatcher uses NodeCache to implement a simple rate limiter. If
+// node-cache is not installed (e.g. during offline development) fall back
+// to a minimal in‑memory implementation. The fallback exposes `get` and
+// `set` methods with the same API but no expiry logic.
+let NodeCache;
+try {
+  NodeCache = require('node-cache');
+} catch {
+  NodeCache = class {
+    constructor() { this.map = new Map(); }
+    get(key) { return this.map.get(key); }
+    set(key, value) { this.map.set(key, value); }
+  };
+}
 const rate = new NodeCache({ stdTTL: 2, checkperiod: 2 });
 
 function jidToNum(j){ return String(j||'').split('@')[0].replace(/[^0-9]/g,''); }
