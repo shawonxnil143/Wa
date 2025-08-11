@@ -1,8 +1,9 @@
-// handlers/message/dispatcher.js
+// handlers/message/dispatcher.js (debug-enhanced)
 const NodeCache = require('node-cache');
 const rate = new NodeCache({ stdTTL: 2, checkperiod: 2 });
 
 function jidToNum(j){ return String(j||'').split('@')[0].replace(/[^0-9]/g,''); }
+const DBG = !!process.env.DEBUG_BOT;
 
 async function hasRole(level, { sock, jid, sender, CONFIG }){
   if (level <= 1) return true;
@@ -31,14 +32,16 @@ async function hasRole(level, { sock, jid, sender, CONFIG }){
 }
 
 module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands, volatileCommands, logger, helpers }){
+  if (DBG) logger?.info?.({ tag: 'dispatch:enter', jid, text });
+
   // Approval guard
   try {
     if (jid.endsWith('@g.us')){
       const approval = require('../../utils/approvalStore');
       const ok = await approval.isApproved(jid);
-      if (!ok) return; // silent on pending
+      if (!ok){ if (DBG) logger?.info?.({ tag:'dispatch:blocked_pend_approval', jid }); return; }
     }
-  } catch {}
+  } catch (e){ if (DBG) logger?.warn?.({ tag:'dispatch:approval_error', err:e?.message }); }
 
   // Effective prefix
   let effectivePrefix = CONFIG.prefix || '/';
@@ -48,13 +51,15 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
       const pfx = await pfStore.getPrefixFor(jid);
       if (pfx && pfx.prefix) effectivePrefix = pfx.prefix;
     }
-  } catch {}
+  } catch (e){ if (DBG) logger?.warn?.({ tag:'dispatch:prefix_error', err:e?.message }); }
 
   if (typeof text !== 'string' || !text.trim()) return;
   const usedPrefix = text.startsWith(effectivePrefix);
   const parts = (usedPrefix ? text.slice(effectivePrefix.length) : text).trim().split(/\s+/);
   const name = (parts[0]||'').toLowerCase();
   const args = parts.slice(1);
+  if (DBG) logger?.info?.({ tag:'dispatch:parsed', name, usedPrefix, effectivePrefix });
+
   if (!name) return;
 
   // Build safe registry
@@ -62,6 +67,8 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
     ...Array.from(volatileCommands?.values?.() || []),
     ...Array.from(commands?.values?.() || [])
   ].filter(c => c && typeof c === 'object' && typeof c.name === 'string');
+
+  if (DBG) logger?.info?.({ tag:'dispatch:registry', count: allCmds.length });
 
   // Resolve by name
   let cmd = allCmds.find(c => String(c.name).toLowerCase() === name);
@@ -75,11 +82,11 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
       if (cmd) break;
     }
   }
-  if (!cmd) return;
+  if (!cmd){ if (DBG) logger?.info?.({ tag:'dispatch:no_command', name }); return; }
 
   // Prefix policy
   const needsPrefix = (cmd.prefix !== false);
-  if (needsPrefix && !usedPrefix) return;
+  if (needsPrefix && !usedPrefix){ if (DBG) logger?.info?.({ tag:'dispatch:needs_prefix', name }); return; }
 
   // Rate limit
   const rateKey = `${cmd.name}:${jid}:${m.key.participant || m.key.remoteJid}`;
@@ -107,6 +114,8 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
     const roleName = {1:'alluser',2:'admin',3:'moderator',4:'owner'}[requiredRole] || requiredRole;
     return sock.sendMessage(jid, { text: `❌ Minimum role required: ${requiredRole} (${roleName})` }, { quoted: m });
   }
+
+  if (DBG) logger?.info?.({ tag:'dispatch:exec', cmd: cmd.name, args });
 
   try {
     const context = { sock, m, jid, args, text, CONFIG, logger, commands, helpers };
