@@ -6,7 +6,7 @@ module.exports = {
   usage: '[index|jid ...]',
   name: 'approve',
   aliases: [],
-  role: 'owner',
+  role: 'admin',
   prefix: true,
   desc: 'Approve the current group or one or more groups by index or JID.',
   /**
