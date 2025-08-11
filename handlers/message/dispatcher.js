@@ -89,15 +89,6 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
         // supports TTL when available. The fallback implementation ignores it
         // but still stores the key so the message is sent only once per session.
         const prefix = CONFIG.prefix || '/';
-        const promptKey = `approvalPrompt:${jid}`;
-        if (!rate.get(promptKey)) {
-          rate.set(promptKey, 1);
-          try {
-            await sock.sendMessage(jid, {
-              text: `❌ This group is not approved for the bot. Please ask the bot owner to type \`${prefix}approve\` in this group to enable it.`,
-            });
-          } catch {}
-        }
         if (DBG) logger?.info?.({ tag: 'dispatch:blocked_pend_approval', jid });
         return;
       }
