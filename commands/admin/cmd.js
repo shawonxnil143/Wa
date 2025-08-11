@@ -2,65 +2,82 @@
 const path = require('path');
 
 module.exports = {
-  usage: '',
+  name: "cmd",
   aliases: [],
-  desc: 'No description',
+  desc: "Manage volatile (runtime) commands",
+  usage: "/cmd <install|remove|list> ...",
   prefix: true,
   role: 1,
-  name: "cmd",
-  run: async ({ sock, m, jid, args, CONFIG, logger, helpers
-}) => {
+
+  run: async ({ sock, m, args, CONFIG, logger, helpers }) => {
     try {
       const sub = (args.shift() || '').toLowerCase();
+
+      // Help message if no subcommand
       if (!sub) {
-        return m.reply(`Usage:
-${CONFIG.prefix}cmd install <name.js> <code>  — inline
+        return m.reply(
+`📜 *Command Manager*
+Usage:
+${CONFIG.prefix}cmd install <name.js> <code> — inline
 ${CONFIG.prefix}cmd install <name.js> \`\`\`js
 <code>
-\`\`\`  — multiline
+\`\`\` — multiline
 ${CONFIG.prefix}cmd remove <name>
-${CONFIG.prefix}cmd list`);
+${CONFIG.prefix}cmd list`
+        );
       }
 
+      // LIST
       if (sub === 'list') {
         const names = Array.from(helpers.volatile.keys());
-        return m.reply(names.length ? 'Volatile: ' + names.join(', ') : 'No volatile commands.');
+        return m.reply(names.length ? 
+          '📂 *Volatile Commands:* ' + names.join(', ') : 
+          'ℹ️ No volatile commands installed.');
       }
 
+      // REMOVE
       if (sub === 'remove') {
-        const name = (args.shift() || '').replace(/\.js$/i,'').toLowerCase();
-        if (!name) return m.reply('Give a command name. e.g. poli');
+        const name = (args.shift() || '').replace(/\.js$/i, '').toLowerCase();
+        if (!name) return m.reply('❌ Give a command name. e.g. test');
         const ok = helpers.unregisterCommandByName(name);
-        return m.reply(ok ? `Removed ${name}` : `Not found: ${name}`);
+        return m.reply(ok ? `🗑 Removed command: ${name}` : `⚠️ Not found: ${name}`);
       }
 
+      // INSTALL
       if (sub === 'install') {
         let name = (args.shift() || '').toLowerCase();
-        if (!name) return m.reply('Give file name, e.g. poli.js');
+        if (!name) return m.reply('❌ Give file name, e.g. test.js');
         name = name.replace(/\.js$/i, '');
 
-        // Try to extract code from the rest of message (inline or fenced)
-        const raw = (args.join(' ') || '');
-        let code = raw;
+        // Extract code
+        let code = args.join(' ') || '';
+        const fenced = /```[a-zA-Z0-9]*\n?([\s\S]*?)```/.exec(
+          m.message?.extendedTextMessage?.text || ''
+        );
+        if (fenced && fenced[1]) code = fenced[1];
 
-        // fenced block ``` ``` support
-        const match = /```[a-zA-Z0-9]*\n?([\s\S]*?)```/.exec(m.message?.extendedTextMessage?.text || '');
-        if (match && match[1]) code = match[1];
-
-        if (!code.trim()) return m.reply('Missing code. Provide inline code or fenced ```js blocks.');
+        if (!code.trim()) {
+          return m.reply('⚠️ Missing code. Provide inline code or fenced ```js blocks.');
+        }
 
         try {
           const mod = helpers.registerCommandFromCode(name, code);
-          return m.reply(`✅ Installed: ${mod.name} (volatile)`);
+          if (!mod || typeof mod.run !== 'function') {
+            return m.reply(`❌ Failed to install: Your code did not export { name, run }`);
+          }
+          return m.reply(`✅ Installed command: ${mod.name} (volatile)`);
         } catch (e) {
+          logger?.error?.(e);
           return m.reply('❌ Failed to install: ' + (e.message || e));
         }
       }
 
-      return m.reply('Unknown subcommand.');
+      // Unknown
+      return m.reply(`❓ Unknown subcommand: ${sub}`);
+
     } catch (e) {
       logger?.error?.(e);
-      return m.reply('❌ ' + (e.message || e));
+      return m.reply('❌ Error: ' + (e.message || e));
     }
   }
 };
