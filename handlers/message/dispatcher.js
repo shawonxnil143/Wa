@@ -47,14 +47,44 @@ async function hasRole(level, { sock, jid, sender, CONFIG }){
 module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands, volatileCommands, logger, helpers }){
   if (DBG) logger?.info?.({ tag: 'dispatch:enter', jid, text });
 
-  // Approval guard
+  // Approval guard: only allow commands in approved groups. If a group is not
+  // approved, record it as pending and notify the chat with instructions to
+  // approve. This ensures the bot stays silent in unapproved groups until
+  // explicitly approved by the owner.
   try {
-    if (jid.endsWith('@g.us')){
+    if (jid.endsWith('@g.us')) {
       const approval = require('../../utils/approvalStore');
-      const ok = await approval.isApproved(jid);
-      if (!ok){ if (DBG) logger?.info?.({ tag:'dispatch:blocked_pend_approval', jid }); return; }
+      const isOk = await approval.isApproved(jid);
+      if (!isOk) {
+        // Attempt to record this group as pending with its subject
+        try {
+          const meta = await sock.groupMetadata(jid);
+          await approval.addPending(jid, { name: meta?.subject });
+        } catch {
+          // fallback: record without metadata
+          try { await approval.addPending(jid); } catch {}
+        }
+        // Notify users that the bot is disabled until approved. Use a simple
+        // rate limit so we don't spam the group on every message. NodeCache
+        // supports TTL when available. The fallback implementation ignores it
+        // but still stores the key so the message is sent only once per session.
+        const prefix = CONFIG.prefix || '/';
+        const promptKey = `approvalPrompt:${jid}`;
+        if (!rate.get(promptKey)) {
+          rate.set(promptKey, 1);
+          try {
+            await sock.sendMessage(jid, {
+              text: `❌ This group is not approved for the bot. Please ask the bot owner to type \`${prefix}approve\` in this group to enable it.`,
+            });
+          } catch {}
+        }
+        if (DBG) logger?.info?.({ tag: 'dispatch:blocked_pend_approval', jid });
+        return;
+      }
     }
-  } catch (e){ if (DBG) logger?.warn?.({ tag:'dispatch:approval_error', err:e?.message }); }
+  } catch (e) {
+    if (DBG) logger?.warn?.({ tag: 'dispatch:approval_error', err: e?.message });
+  }
 
   // Effective prefix
   let effectivePrefix = CONFIG.prefix || '/';
