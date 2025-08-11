@@ -34,12 +34,12 @@ module.exports = function init({ sock, CONFIG, logger }) {
       // You can put something like:
       // "features": { "welcome": true, "welcomeTemplate": "Hey {users}, welcome to *{group}*!" }
       const tpl = (CONFIG?.features?.welcomeTemplate) || 
-`🎉 *Welcome* {users} to *{group}*!
-• Prefix: \`${prefix}\`
-• Try: \`${prefix}help\` to see commands
-• Owner(s): ${owners}
-• Language: ${lang}
-• Dashboard: ${dashUrl}
+`ðŸŽ‰ *Welcome* {users} to *{group}*!
+â€¢ Prefix: \`${prefix}\`
+â€¢ Try: \`${prefix}help\` to see commands
+â€¢ Owner(s): ${owners}
+â€¢ Language: ${lang}
+â€¢ Dashboard: ${dashUrl}
 
 Enjoy your stay!`;
 
