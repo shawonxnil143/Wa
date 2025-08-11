@@ -31,14 +31,16 @@ async function hasRole(level, { sock, jid, sender, CONFIG }){
 }
 
 module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands, volatileCommands, logger, helpers }){
+  // Approval guard
   try {
     if (jid.endsWith('@g.us')){
       const approval = require('../../utils/approvalStore');
       const ok = await approval.isApproved(jid);
-      if (!ok) return;
+      if (!ok) return; // silent on pending
     }
   } catch {}
 
+  // Effective prefix
   let effectivePrefix = CONFIG.prefix || '/';
   try {
     if (jid.endsWith('@g.us')){
@@ -55,12 +57,15 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
   const args = parts.slice(1);
   if (!name) return;
 
+  // Build safe registry
   const allCmds = [
     ...Array.from(volatileCommands?.values?.() || []),
     ...Array.from(commands?.values?.() || [])
   ].filter(c => c && typeof c === 'object' && typeof c.name === 'string');
 
+  // Resolve by name
   let cmd = allCmds.find(c => String(c.name).toLowerCase() === name);
+  // Resolve by aliases
   if (!cmd){
     for (const c of allCmds){
       const aliasesArr = Array.isArray(c.aliases) ? c.aliases : [];
@@ -72,13 +77,16 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
   }
   if (!cmd) return;
 
+  // Prefix policy
   const needsPrefix = (cmd.prefix !== false);
   if (needsPrefix && !usedPrefix) return;
 
+  // Rate limit
   const rateKey = `${cmd.name}:${jid}:${m.key.participant || m.key.remoteJid}`;
   if (rate.get(rateKey)) return;
   rate.set(rateKey, 1);
 
+  // Role
   let requiredRole = 1;
   if (typeof cmd.role === 'number') requiredRole = cmd.role;
   else if (typeof cmd.role === 'string'){
@@ -86,6 +94,7 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
     requiredRole = map[cmd.role.toLowerCase()] || 1;
   }
 
+  // Dynamic override
   try {
     const roleStore = require('../../utils/roleStore');
     const over = await roleStore.get(cmd.name);
@@ -100,9 +109,11 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
   }
 
   try {
-    await cmd.run({ sock, m, jid, args, text, CONFIG, logger, commands, helpers });
+    const context = { sock, m, jid, args, text, CONFIG, logger, commands, helpers };
+    if (typeof cmd.init === 'function'){ try { await cmd.init(context); } catch {} }
+    await cmd.run(context);
   } catch (e){
-    logger?.error?.(e);
+    try { logger?.error?.(e); } catch {}
     await sock.sendMessage(jid, { text: `❌ Error: ${e.message}` }, { quoted: m });
   }
-                  }
+}
