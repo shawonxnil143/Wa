@@ -4,7 +4,7 @@ module.exports = {
   
   name: 'pnd',
   aliases: [],
-  role: 'owner',
+  role: 'admin',
   prefix: true,
   desc: 'Show pending groups that need approval. Use the approve command to activate them.',
   run: async ({ m }) => {
