@@ -3,9 +3,9 @@
   "prefix": "/",
   "language": "en",
   "owner": [
-    "+6585062351"
+    "+8801818512416"
   ],
-  "botNumber": "+6598840792",
+  "botNumber": "+8801726995852",
   "features": {
     "pairingCode": true,
     "autoRead": true,
@@ -24,11 +24,11 @@
     }
   },
   "dashboard": {
-    "enabled": false,
+    "enabled": true,
     "adminKeyEnv": "ADMIN_KEY"
   },
   "database": {
-    "enabled": true,
+    "enabled": false,
     "mongoURI": ""
   }
 }
