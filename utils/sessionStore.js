@@ -1,28 +1,11 @@
-// Backup and restore session from MongoDB
-const fs = require('fs');
-const path = require('path');
-const Session = require('../database/sessionModel');
-
-async function backupAuthToDB(authDir) {
-  const files = fs.readdirSync(authDir);
-  for (const file of files) {
-    const filePath = path.join(authDir, file);
-    const data = fs.readFileSync(filePath, 'base64');
-    await Session.findOneAndUpdate({ file, botNumber: (process.env.BOT_NUMBER || (require('../config.json').botNumber || '')) }, { data }, { upsert: true });
-  }
-  console.log('✅ Session backed up to DB');
+// Session store (no Mongo) — keep local auth only
+// These functions exist for compatibility; they do nothing.
+async function backupAuthToDB(_authDir) {
+  // no-op: we do not persist sessions to MongoDB
+  return false;
 }
-
-async function restoreAuthFromDB(authDir) {
-  const bn = (process.env.BOT_NUMBER || (require('../config.json').botNumber || ''));
-  const sessions = await Session.find({ botNumber: bn });
-  if (!sessions.length) return false;
-  for (const s of sessions) {
-    const filePath = path.join(authDir, s.file);
-    fs.writeFileSync(filePath, Buffer.from(s.data, 'base64'));
-  }
-  console.log('✅ Session restored from DB');
-  return true;
+async function restoreAuthFromDB(_authDir) {
+  // no-op: always start from local auth files (if any)
+  return false;
 }
-
 module.exports = { backupAuthToDB, restoreAuthFromDB };
