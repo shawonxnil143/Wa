@@ -24,7 +24,7 @@
     }
   },
   "dashboard": {
-    "enabled": true,
+    "enabled": false,
     "adminKeyEnv": "ADMIN_KEY"
   },
   "database": {
