@@ -47,23 +47,43 @@ async function hasRole(level, { sock, jid, sender, CONFIG }){
 module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands, volatileCommands, logger, helpers }){
   if (DBG) logger?.info?.({ tag: 'dispatch:enter', jid, text });
 
-  // Approval guard: only allow commands in approved groups. If a group is not
-  // approved, record it as pending and notify the chat with instructions to
-  // approve. This ensures the bot stays silent in unapproved groups until
-  // explicitly approved by the owner.
+  // Approval guard: hard silent for unapproved groups. 
   try {
     if (jid.endsWith('@g.us')) {
       const approval = require('../../utils/approvalStore');
-      const isOk = await approval.isApproved(jid);
-      if (!isOk) {
-        // Attempt to record this group as pending with its subject
+      const ok = await approval.isApproved(jid);
+      if (!ok) {
+        // Record as pending (no outward messages)
         try {
-          const meta = await sock.groupMetadata(jid);
+          const meta = await sock.groupMetadata(jid).catch(() => null);
           await approval.addPending(jid, { name: meta?.subject });
-        } catch {
-          // fallback: record without metadata
-          try { await approval.addPending(jid); } catch {}
+        } catch {}
+        // Parse command name (if any)
+        const usedPrefix = helpers?.detectPrefix ? helpers.detectPrefix(text, CONFIG?.prefix) : (text?.startsWith(CONFIG?.prefix||'/') ? (CONFIG?.prefix||'/') : '');
+        const name = usedPrefix ? String(text.slice(usedPrefix.length).split(/\s+/)[0]||'').toLowerCase() : '';
+        // Allow only owner/admin to run approve/pnd in unapproved groups
+        const allowList = new Set(['approve','pnd']);
+        let privileged = false;
+        try {
+          // owner check
+          const owners = Array.isArray(CONFIG?.owner) ? CONFIG.owner : String(CONFIG?.owner||'').split(',').map(s=>s.trim()).filter(Boolean);
+          const senderRaw = (m.key?.participant || m.participant || m.sender || '').split(':')[0];
+          const senderNum = senderRaw.replace(/\D/g, '');
+          privileged = owners.some(o => o.replace(/\D/g,'') === senderNum);
+          // admin check
+          if (!privileged) {
+            const meta = await sock.groupMetadata(jid).catch(() => null);
+            const admins = (meta?.participants||[]).filter(p => p.admin).map(p => (p.id||p.jid||p.user||'')).map(x => String(x).split('@')[0]);
+            privileged = admins.includes(senderNum);
+          }
+        } catch {}
+        if (!(privileged && allowList.has(name))) {
+          return; // stay silent
         }
+      }
+    }
+  } catch {}
+}
         // Notify users that the bot is disabled until approved. Use a simple
         // rate limit so we don't spam the group on every message. NodeCache
         // supports TTL when available. The fallback implementation ignores it
@@ -168,4 +188,4 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
     try { logger?.error?.(e); } catch {}
     await sock.sendMessage(jid, { text: `❌ Error: ${e.message}` }, { quoted: m });
   }
-}
+      }
