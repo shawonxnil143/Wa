@@ -188,4 +188,4 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
     try { logger?.error?.(e); } catch {}
     await sock.sendMessage(jid, { text: `❌ Error: ${e.message}` }, { quoted: m });
   }
-      }
+}
