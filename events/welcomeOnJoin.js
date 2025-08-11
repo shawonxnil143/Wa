@@ -35,12 +35,23 @@ module.exports = function init({ sock, CONFIG, logger }) {
       text += `\n• Dashboard: ${dashUrl}`;
       text += `\n• Help: type \`${prefix}help\``;
       if (admins.length) text += `\n\n👮 *Group Admins:* ${admins.join(", ")}`;
+      // When the bot joins a new group it should not be active until approved.
+      // Mark this group as pending in the approval store and append an approval
+      // instruction to the welcome message. If addPending fails it will be
+      // silently ignored.
+      try {
+        const store = require('../utils/approvalStore');
+        await store.addPending(ev.id, { name: meta.subject });
+      } catch {}
+
+      text += `\n\n⚠️ This group is currently *unapproved*. `;
+      text += `Please ask the bot owner to type \`${prefix}approve\` in this group to activate the bot.`;
 
       await sock.sendMessage(
         ev.id,
         { text, mentions: admins.map(a => a.replace("@", "") + "@s.whatsapp.net") },
       );
-      logger?.info?.(`Sent join-welcome to ${meta.subject}`);
+      logger?.info?.(`Sent join-welcome to ${meta.subject} (pending approval)`);
     } catch (e) {
       logger?.error?.(`welcomeOnJoin error: ${e.message}`);
     }
