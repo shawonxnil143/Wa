@@ -5,15 +5,12 @@ const rate = new NodeCache({ stdTTL: 2, checkperiod: 2 });
 function jidToNum(j){ return String(j||'').split('@')[0].replace(/[^0-9]/g,''); }
 
 async function hasRole(level, { sock, jid, sender, CONFIG }){
-  // Level: 1 alluser, 2 group admin, 3 moderator, 4 owner
   if (level <= 1) return true;
   const num = '+' + jidToNum(sender || '');
 
-  // owner
   const owners = Array.isArray(CONFIG.owner) ? CONFIG.owner : [CONFIG.owner].filter(Boolean);
-  if (level >= 4) return owners.includes(num);
+  if (level === 4) return owners.includes(num);
 
-  // moderator
   if (level >= 3){
     try {
       const modStore = require('../../utils/modStore');
@@ -22,7 +19,6 @@ async function hasRole(level, { sock, jid, sender, CONFIG }){
     } catch { return false; }
   }
 
-  // group admin
   if (level >= 2){
     if (!jid.endsWith('@g.us')) return false;
     try {
@@ -31,7 +27,6 @@ async function hasRole(level, { sock, jid, sender, CONFIG }){
       return Boolean(isAdmin);
     } catch { return false; }
   }
-
   return true;
 }
 
@@ -41,7 +36,7 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
     if (jid.endsWith('@g.us')){
       const approval = require('../../utils/approvalStore');
       const ok = await approval.isApproved(jid);
-      if (!ok) return; // silent in pending groups
+      if (!ok) return;
     }
   } catch {}
 
@@ -57,23 +52,28 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
 
   // Parse
   let name = null, args = [];
-  const usedPrefix = text.startsWith(effectivePrefix);
-  if (usedPrefix){
-    const parts = text.slice(effectivePrefix.length).trim().split(/\s+/);
-    name = (parts[0]||'').toLowerCase(); args = parts.slice(1);
-  } else {
-    const parts = text.trim().split(/\s+/);
-    name = (parts[0]||'').toLowerCase(); args = parts.slice(1);
-  }
+  const usedPrefix = typeof text === 'string' && text.startsWith(effectivePrefix);
+  const parts = (usedPrefix ? text.slice(effectivePrefix.length) : text).trim().split(/\s+/);
+  name = (parts[0]||'').toLowerCase(); args = parts.slice(1);
+  if (!name) return;
 
-  // Resolve by name
-  let cmd = volatileCommands.get(name) || commands.get(name);
+  // Normalize registries to safe array of objects
+  const allCmds = [
+    ...Array.from(volatileCommands?.values?.() || []),
+    ...Array.from(commands?.values?.() || [])
+  ].filter(c => c && typeof c === 'object' && typeof c.name === 'string');
+
+  // Resolve exact name
+  let cmd = allCmds.find(c => String(c.name).toLowerCase() === name);
+
+  // Resolve via aliases (safely)
   if (!cmd){
-    // try aliases, skip invalid entries safely
-    for (const c of [...volatileCommands.values(), ...commands.values()]){
-      if (!c || typeof c !== 'object') continue;
+    for (const c of allCmds){
       const aliasesArr = Array.isArray(c.aliases) ? c.aliases : [];
-      if (aliasesArr.map(a=>String(a).toLowerCase()).includes(name)) { cmd = c; break; }
+      for (const a of aliasesArr){
+        if (String(a).toLowerCase() === name){ cmd = c; break; }
+      }
+      if (cmd) break;
     }
   }
   if (!cmd) return;
@@ -83,7 +83,7 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
   if (needsPrefix && !usedPrefix) return;
 
   // Rate limit
-  const rateKey = `${name}:${jid}:${m.key.participant || m.key.remoteJid}`;
+  const rateKey = `${cmd.name}:${jid}:${m.key.participant || m.key.remoteJid}`;
   if (rate.get(rateKey)) return;
   rate.set(rateKey, 1);
 
@@ -91,7 +91,7 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
   let requiredRole = 1;
   if (typeof cmd.role === 'number') requiredRole = cmd.role;
   else if (typeof cmd.role === 'string'){
-    const map = { alluser:1, admin:2, mod:3, moderator:3, owner:4 };
+    const map = { alluser:1, user:1, admin:2, mod:3, moderator:3, owner:4 };
     requiredRole = map[cmd.role.toLowerCase()] || 1;
   }
 
@@ -109,7 +109,6 @@ module.exports = async function dispatch({ sock, m, jid, text, CONFIG, commands,
     return sock.sendMessage(jid, { text: `❌ Minimum role required: ${requiredRole} (${roleName})` }, { quoted: m });
   }
 
-  // Execute
   try {
     await cmd.run({ sock, m, jid, args, text, CONFIG, logger, commands, helpers });
   } catch (e){
